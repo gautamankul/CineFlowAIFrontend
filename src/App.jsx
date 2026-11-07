@@ -20,7 +20,7 @@ export default function App() {
       {/* Protected Project / Studio Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/projects/:id" element={<ProjectDetail />} />
+        <Route path="/project/:id" element={<ProjectDetail />} />
       </Route>
 
       {/* Catch-all fallback back to landing */}

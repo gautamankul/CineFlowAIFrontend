@@ -1,17 +1,13 @@
-
 import React, { useEffect, useState, useCallback } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../services/api";
 import "./Dashboard.css";
 
-// Change this if your Django endpoint is different.
+// Matched to router prefix in urls.py (path("api/", include(router.urls)))
 const PROJECT_URL = "/studio/projects/";
 
-
-// Parse Django REST API responses.
 const handleResponse = async (response) => {
   const contentType = response.headers.get("content-type") || "";
-
   let data = {};
 
   if (response.status !== 204) {
@@ -34,9 +30,8 @@ const handleResponse = async (response) => {
               const errorText = Array.isArray(value)
                 ? value.join(", ")
                 : typeof value === "object"
-                  ? JSON.stringify(value)
-                  : String(value);
-
+                ? JSON.stringify(value)
+                : String(value);
               return `${key}: ${errorText}`;
             })
             .join(" | ")
@@ -54,6 +49,9 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [style, setStyle] = useState("Cinematic realism");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [sceneCount, setSceneCount] = useState(3);
 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -64,7 +62,6 @@ export default function Dashboard() {
     const response = await apiFetch(PROJECT_URL, {
       method: "GET",
     });
-
     return handleResponse(response);
   }, []);
 
@@ -77,7 +74,18 @@ export default function Dashboard() {
       },
       body: JSON.stringify(projectData),
     });
+    return handleResponse(response);
+  };
 
+  // TRIGGER STORYBOARD GENERATION
+  const generateStoryboard = async (projectId, count) => {
+    const response = await apiFetch(`${PROJECT_URL}${projectId}/storyboard/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ scene_count: count }),
+    });
     return handleResponse(response);
   };
 
@@ -85,10 +93,7 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     try {
       setError("");
-
       const res = await getProjects();
-
-      // Supports Django list and paginated responses.
       const projectData = Array.isArray(res)
         ? res
         : res.results ?? res.data ?? [];
@@ -109,7 +114,7 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
-  // CREATE NEW PROJECT
+  // SUBMIT HANDLER
   const handleCreate = async (e) => {
     e.preventDefault();
 
@@ -125,17 +130,21 @@ export default function Dashboard() {
       setCreating(true);
       setError("");
 
-      await createProject({
+      // 1. Create project record
+      const newProject = await createProject({
         name: projectName,
         prompt: projectPrompt,
-        style: "Cinematic realism",
+        style: style,
+        aspect_ratio: aspectRatio,
       });
 
+      // 2. Dispatch Celery storyboard task
+      await generateStoryboard(newProject.id, Number(sceneCount));
+
+      // 3. Clear inputs & navigate to the Project view
       setName("");
       setPrompt("");
-
-      // Reload projects after successful creation.
-      await loadData();
+      navigate(`/project/${newProject.id}`);
     } catch (err) {
       setError(err.message || "Failed to create project.");
     } finally {
@@ -145,47 +154,33 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-
-      {/* HEADER */}
       <header className="dashboard-header">
         <div className="dashboard-logo">
           ▶ CineFlow<span>AI</span>
         </div>
-
         <div className="header-right">
-          <span className="studio-label">
-            AI FILM STUDIO
-          </span>
+          <span className="studio-label">AI FILM STUDIO</span>
         </div>
       </header>
 
       <main className="dashboard-content">
-
-        {/* WELCOME SECTION */}
         <section className="welcome-section">
           <div>
-            <span className="section-tag">
-              YOUR CREATIVE WORKSPACE
-            </span>
-
+            <span className="section-tag">YOUR CREATIVE WORKSPACE</span>
             <h1>
               CineFlowAI <span>Studio</span>
             </h1>
-
             <p>
-              Turn your imagination into cinematic experiences.
-              Create and manage your AI film projects.
+              Turn your imagination into cinematic experiences. Create and
+              manage your AI film projects.
             </p>
           </div>
-
           <div className="welcome-icon">🎬</div>
         </section>
 
-        {/* ERROR MESSAGE */}
         {error && (
           <div className="dashboard-error" role="alert">
             ⚠ {error}
-
             <button
               type="button"
               onClick={() => setError("")}
@@ -196,47 +191,32 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* CREATE PROJECT */}
         <section className="create-section">
           <div className="section-heading">
             <div>
               <h2>Create New Project</h2>
               <p>Start your next cinematic masterpiece.</p>
             </div>
-
-            <span className="ai-badge">
-              ✦ AI POWERED
-            </span>
+            <span className="ai-badge">✦ AI POWERED</span>
           </div>
 
-          <form
-            onSubmit={handleCreate}
-            className="project-form"
-          >
-            {/* PROJECT TITLE */}
+          <form onSubmit={handleCreate} className="project-form">
             <div className="form-group">
-              <label htmlFor="project-name">
-                Project Title
-              </label>
-
+              <label htmlFor="project-name">Project Title</label>
               <input
                 id="project-name"
                 type="text"
                 placeholder="Enter your film title..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                maxLength={150}
+                maxLength={120}
                 disabled={creating}
                 required
               />
             </div>
 
-            {/* FILM PROMPT */}
             <div className="form-group">
-              <label htmlFor="film-prompt">
-                Describe Your Film
-              </label>
-
+              <label htmlFor="film-prompt">Describe Your Film</label>
               <textarea
                 id="film-prompt"
                 placeholder="Describe your cinematic vision, characters, environment, camera movements, lighting and story..."
@@ -248,64 +228,91 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* FORM FOOTER */}
-            <div className="form-bottom">
-              <span className="style-label">
-                🎥 Style: Cinematic Realism
-              </span>
+            <div
+              className="form-row"
+              style={{ display: "flex", gap: "12px", marginBottom: "16px" }}
+            >
+              <div className="form-group" style={{ flex: 1 }}>
+                <label htmlFor="project-style">Visual Style</label>
+                <select
+                  id="project-style"
+                  value={style}
+                  onChange={(e) => setStyle(e.target.value)}
+                  disabled={creating}
+                >
+                  <option value="Cinematic realism">Cinematic realism</option>
+                  <option value="Science fiction">Science fiction</option>
+                  <option value="Fantasy">Fantasy</option>
+                  <option value="Anime">Anime</option>
+                  <option value="Documentary">Documentary</option>
+                  <option value="Stylized animation">Stylized animation</option>
+                </select>
+              </div>
 
+              <div className="form-group" style={{ flex: 1 }}>
+                <label htmlFor="project-aspect">Aspect Ratio</label>
+                <select
+                  id="project-aspect"
+                  value={aspectRatio}
+                  onChange={(e) => setAspectRatio(e.target.value)}
+                  disabled={creating}
+                >
+                  <option value="16:9">16:9 (Landscape)</option>
+                  <option value="9:16">9:16 (Portrait)</option>
+                  <option value="1:1">1:1 (Square)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ width: "100px" }}>
+                <label htmlFor="project-scenes">Scenes</label>
+                <input
+                  id="project-scenes"
+                  type="number"
+                  min="2"
+                  max="10"
+                  value={sceneCount}
+                  onChange={(e) => setSceneCount(e.target.value)}
+                  disabled={creating}
+                />
+              </div>
+            </div>
+
+            <div className="form-bottom">
+              <span className="style-label">🎥 Style: {style}</span>
               <button
                 type="submit"
                 className="create-button"
                 disabled={creating}
               >
-                {creating
-                  ? "Creating..."
-                  : "✦ Create Project"}
+                {creating ? "Creating..." : "✦ Create & Generate Storyboard"}
               </button>
             </div>
           </form>
         </section>
 
-        {/* PROJECT LIST */}
         <section className="projects-section">
           <div className="section-heading">
             <div>
               <h2>My Projects</h2>
               <p>Manage your cinematic creations.</p>
             </div>
-
-            <span className="project-count">
-              {projects.length} Projects
-            </span>
+            <span className="project-count">{projects.length} Projects</span>
           </div>
 
-          {/* LOADING STATE */}
           {loading ? (
             <div className="empty-state" role="status">
               Loading your projects...
             </div>
-
           ) : projects.length === 0 ? (
-
-            /* EMPTY STATE */
             <div className="empty-state">
               <div className="empty-icon">🎬</div>
-
               <h3>No Projects Yet</h3>
-
-              <p>
-                Your creative journey starts here.
-                Create your first AI film project.
-              </p>
+              <p>Your creative journey starts here. Create your first AI film project.</p>
             </div>
-
           ) : (
-
-            /* PROJECT CARDS */
             <div className="project-grid">
               {projects.map((project) => {
-                const status = String(
+                const projectStatus = String(
                   project.status || "pending"
                 ).toLowerCase();
 
@@ -313,33 +320,21 @@ export default function Dashboard() {
                   <article
                     className="project-card"
                     key={project.id}
-                    onClick={() => navigate(`/projects/${project.id}`)}
+                    onClick={() => navigate(`/project/${project.id}`)}
                   >
                     <div className="project-card-top">
-                      <span className="project-icon">
-                        🎞
-                      </span>
-
-                      <span
-                        className={`status-badge ${status}`}
-                      >
+                      <span className="project-icon">🎞</span>
+                      <span className={`status-badge ${projectStatus}`}>
                         {project.status || "Pending"}
                       </span>
                     </div>
 
                     <h3>{project.name}</h3>
-
-                    <p className="project-prompt">
-                      {project.prompt}
-                    </p>
+                    <p className="project-prompt">{project.prompt}</p>
 
                     <div className="project-card-footer">
-                      <span>
-                        {project.style ||
-                          "Cinematic realism"}
-                      </span>
-
-                      <span>#{project.id}</span>
+                      <span>{project.style || "Cinematic realism"}</span>
+                      <span>#{String(project.id).slice(0, 8)}</span>
                     </div>
                   </article>
                 );

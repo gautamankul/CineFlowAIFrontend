@@ -102,11 +102,11 @@ const LandingPage = () => {
             <span style={styles.timecodeDisplay}>{formatTime(currentTime)}</span>
           </div>
 
-          {/* Video Preview Canvas */}
+          {/* Video Preview Canvas from unsnplash */}
           <div style={styles.videoContainer}>
             <video
               ref={videoRef}
-              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+              src="https://github.com/dhanushankul/ModelDiagram/blob/main/big-buck-bunny-1080p-30sec.mp4"
               style={styles.videoPlayer}
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
