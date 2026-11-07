@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import LandingPage from './pages/LandingPage';
+import ProjectDetail from './pages/ProjectDetail';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
       {/* Protected Project / Studio Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
       </Route>
 
       {/* Catch-all fallback back to landing */}

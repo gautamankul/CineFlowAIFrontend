@@ -1,10 +1,12 @@
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from 'react-router-dom';
 import { apiFetch } from "../services/api";
 import "./Dashboard.css";
 
 // Change this if your Django endpoint is different.
 const PROJECT_URL = "/studio/projects/";
+
 
 // Parse Django REST API responses.
 const handleResponse = async (response) => {
@@ -48,6 +50,7 @@ const handleResponse = async (response) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -310,6 +313,7 @@ export default function Dashboard() {
                   <article
                     className="project-card"
                     key={project.id}
+                    onClick={() => navigate(`/projects/${project.id}`)}
                   >
                     <div className="project-card-top">
                       <span className="project-icon">
