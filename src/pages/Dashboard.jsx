@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "../services/api";
 import "./Dashboard.css";
 
 // Change this if your Django endpoint is different.
-const PROJECT_URL = "/projects/";
+const PROJECT_URL = "/studio/projects/";
 
 // Parse Django REST API responses.
 const handleResponse = async (response) => {
